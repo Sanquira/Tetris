@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+using UnityEngine.Networking;
 
 public class GameController : MonoBehaviour
 {
@@ -13,6 +15,8 @@ public class GameController : MonoBehaviour
     public TextMesh rowsValueText;
     public GameObject gameOverText;
     public GameObject pausedText;
+    public GameObject namePanel;
+    public InputField namePanelText;
     public GameObject[] blockList;
     public float speedupCoeficient = 4;
 
@@ -27,6 +31,7 @@ public class GameController : MonoBehaviour
     private int rows;
     private GameObject[,] playGrid;
     private bool gameOver;
+    private bool isNamePanelOpen;
     private Bounds positionBoundaries;
 
     void Start()
@@ -39,8 +44,10 @@ public class GameController : MonoBehaviour
         playGrid = new GameObject[(int)arraySize.x, (int)arraySize.y];
         gameOver = false;
         isPaused = false;
+        isNamePanelOpen = false;
         gameOverText.SetActive(false);
         pausedText.SetActive(isPaused);
+        namePanel.SetActive(isNamePanelOpen);
         UpdateFallSpeed();
         Spawn(Random.Range(0, blockList.Length));
         GenerateAndShowNextBlock();
@@ -54,7 +61,7 @@ public class GameController : MonoBehaviour
             pausedText.SetActive(isPaused);
         }
 
-        if (Input.GetKeyDown(KeyCode.R))
+        if (Input.GetKeyDown(KeyCode.R) && !isNamePanelOpen)
         {
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
         }
@@ -156,6 +163,20 @@ public class GameController : MonoBehaviour
     {
         gameOver = true;
         gameOverText.SetActive(true);
+        OpenNamePanel();
+    }
+
+    private void OpenNamePanel()
+    {
+        isNamePanelOpen = true;
+        namePanelText.text = PersistentData.name;
+        namePanel.SetActive(isNamePanelOpen);
+    }
+
+    private void CloseNamePanel()
+    {
+        isNamePanelOpen = false;
+        namePanel.SetActive(isNamePanelOpen);
     }
 
     private void CleanUpObjects()
@@ -235,6 +256,50 @@ public class GameController : MonoBehaviour
                 }
             }
         }
+    }
+
+    private void SendScoreToDatabase(string name, int score, int rows)
+    {
+        StartCoroutine(Upload(name, score, rows));
+    }
+
+    IEnumerator Upload(string name, int score, int rows)
+    {
+        List<IMultipartFormSection> formData = new List<IMultipartFormSection>();
+        formData.Add(new MultipartFormDataSection("name", name));
+        formData.Add(new MultipartFormDataSection("score", score.ToString()));
+        formData.Add(new MultipartFormDataSection("rows", rows.ToString()));
+
+        UnityWebRequest www = UnityWebRequest.Post("http://deserd.wz.cz/unity/tetris/scoreboard/add.php", formData);
+        yield return www.Send();
+
+        if (www.isError)
+        {
+            Debug.Log(www.error);
+        }
+        else
+        {
+            Debug.Log(www.responseCode);
+            Debug.Log("Form upload complete!");
+        }
+    }
+
+    public void OnOkNameClicked(Text nameText)
+    {
+        if (nameText.text != "" && nameText.text.Length <= 8 && nameText.text.Length > 0)
+        {
+            PersistentData.name = nameText.text;
+            SendScoreToDatabase(nameText.text, score, rows);
+            CloseNamePanel();
+        }
+    }
+
+
+
+
+    public void OnCancelNameClicked()
+    {
+        CloseNamePanel();
     }
 
 }
