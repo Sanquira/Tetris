@@ -129,7 +129,8 @@ public class GameController : MonoBehaviour
 
     public void UpdateFallSpeed()
     {
-        fallSpeed = Mathf.Pow(speedupCoeficient, -(score / 50000f));
+        //fallSpeed = Mathf.Pow(speedupCoeficient, -(score / 50000f));
+        fallSpeed = Mathf.Pow(1 + ((speedupCoeficient - 1) / 50000f) * score, -1);
     }
 
     private void Spawn(int idx)
